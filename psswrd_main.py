@@ -41,6 +41,8 @@ def help_screen():
     print("The basic commands are:")
     commands()
     commands_additional()
+    input("Press enter to return... ")
+    list_screen()
 
 
 def commands():
@@ -176,6 +178,7 @@ def print_view_options():
     print("delete password information")
     print("back to list")
     print("help")
+    print("exit")
 
 
 def show_screen(key):
@@ -189,7 +192,7 @@ def show_screen(key):
     print("User Name:        " + db[key]['user'])
     print("Password:         " + db[key]['password'])
     print()
-    input("Press enter to return to view screen")
+    input("Press enter to return to view screen... ")
 
     # show the view screen again for the entry
     view_information(db[key]['entry'])
