@@ -104,6 +104,7 @@ def print_list_options():
     print("delete entry")
     print("view entry")
     print("help")
+    print("exit")
 
 
 def add_screen():
@@ -162,6 +163,7 @@ def view_information(view_entry):
             print("Website:          " + db[key]['site'])
             print("User Name:        " + db[key]['user'])
             print("Password:         ******")
+            break
 
     print_view_options()
     return key
@@ -204,6 +206,8 @@ def delete_screen(current_entry):
     :param  current_entry, String with the entry that the user wants to delete
     :return database length as an int
     """
+    #clear()
+    print()
     print("WARNING: Deletion is permanent, your password information will be gone")
     if current_entry != '':
         delete_key = current_entry
