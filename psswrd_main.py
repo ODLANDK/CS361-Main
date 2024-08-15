@@ -5,6 +5,7 @@
 
 import os
 import shelve
+import zmq
 
 
 def clear():
@@ -30,7 +31,7 @@ def home_screen():
     commands()
 
 
-def help_screen():
+def help_screen(db):
     """
     Displays the help screen to the user
     :return None
@@ -42,7 +43,7 @@ def help_screen():
     commands()
     commands_additional()
     input("Press enter to return... ")
-    list_screen()
+    list_screen(db)
 
 
 def commands():
@@ -74,7 +75,7 @@ def commands_additional():
     print("Type \"delete\" to delete the current password")
 
 
-def list_screen():
+def list_screen(db):
     """
     Displays the user's list of password information
     :return None
@@ -107,7 +108,7 @@ def print_list_options():
     print("exit")
 
 
-def add_screen():
+def add_screen(db, gen_socket):
     """
     Prompts the user to add a new password to the password database
     :return None
@@ -121,20 +122,43 @@ def add_screen():
 
     # return to list if the user enters 1
     if website == "1":
-        list_screen()
+        list_screen(db)
     else:
         user_name = input("add username: ")
-        password = input("add password: ")
+        password = input("add password\n"
+                         "Type generate to automatically generate a new password: ")
+
+        if password.lower() == "generate":
+            password = generate_password(gen_socket)
+
 
         # add information to the password database
         db[website] = {'entry': len(db) + 1, 'site': website, 'user': user_name,
                        'password': password}
 
-    cleanup_database()
-    list_screen()
+    cleanup_database(db)
+    list_screen(db)
 
 
-def view_screen():
+def generate_password(gen_socket):
+    request = {"operation": "generate_password"}
+    gen_socket.send_json(request)
+    response = gen_socket.recv_json()
+    return response["password"]
+
+
+def rate_password(gen_socket):
+    password = input("Type the password you would like to rate: ")
+    request = {"operation": "rate_password", "password": password}
+    gen_socket.send_json(request)
+    response = gen_socket.recv_json()
+
+    print("Your password is " + password + ":")
+    print(f'Password Rating: {response["rating"]}')
+    print(f'Feedback: {response["feedback"]}')
+
+
+def view_screen(db, user_input):
     """
     Gets the entry number that the user wants to view
     :return None
@@ -145,10 +169,10 @@ def view_screen():
     else:
         view_entry = user_input.split(" ", 1)[1]
 
-    return view_information(view_entry)
+    return view_information(db, view_entry)
 
 
-def view_information(view_entry):
+def view_information(db, view_entry):
     """
     Prints password information for the entry that the user wants to view
     :param  view_entry, String with the entry that the user wants to view
@@ -183,7 +207,7 @@ def print_view_options():
     print("exit")
 
 
-def show_screen(key):
+def show_screen(db, key):
     """
     Gets the entry number that the user wants to view
     :param  key, String with the dictionary key for the password database dictionary
@@ -197,16 +221,15 @@ def show_screen(key):
     input("Press enter to return to view screen... ")
 
     # show the view screen again for the entry
-    view_information(db[key]['entry'])
+    view_information(db, db[key]['entry'])
 
 
-def delete_screen(current_entry):
+def delete_screen(db, current_entry, user_input):
     """
     Gets the entry that the user wants to delete
     :param  current_entry, String with the entry that the user wants to delete
     :return database length as an int
     """
-    #clear()
     print()
     print("WARNING: Deletion is permanent, your password information will be gone")
     if current_entry != '':
@@ -218,10 +241,10 @@ def delete_screen(current_entry):
     else:
         delete_key = user_input.split(" ", 1)[1]
 
-    return delete_information(delete_key, current_entry)
+    return delete_information(db, delete_key, current_entry)
 
 
-def delete_information(delete_entry, current_entry):
+def delete_information(db, delete_entry, current_entry):
     """
     Prints password information for the entry that the user wants to view
     :param  delete_entry, String with the entry that the user wants to delete
@@ -231,15 +254,15 @@ def delete_information(delete_entry, current_entry):
     clear()
     # if the user entered back to return
     if delete_entry.lower() == 'back':
-        list_screen()
+        list_screen(db)
     else:
         del_choice = input("Are you sure you want to delete this password? (y/n) ")
 
         if del_choice.lower() == 'n' and current_entry == '':
-            list_screen()
+            list_screen(db)
         elif del_choice.lower() == 'n' and current_entry != '':
             # show the view screen again for the entry
-            view_information(current_entry)
+            view_information(db, current_entry)
         elif not delete_entry.isnumeric():
             del db[delete_entry]
         else:
@@ -247,11 +270,11 @@ def delete_information(delete_entry, current_entry):
                 if db[key]['entry'] == int(delete_entry):
                     del db[key]
 
-        cleanup_database()
-        list_screen()
+        cleanup_database(db)
+        list_screen(db)
 
 
-def cleanup_database():
+def cleanup_database(db):
     """
     Cleans up the database entry numbers after an addition or deletion
     :return None
@@ -262,33 +285,60 @@ def cleanup_database():
         db[key]['entry'] = new_entry_num
 
 
-# establish a database for password information
-db = shelve.open("log", "c", writeback=True)
-current_key = ''
-home_screen()
-while True:
-    print()
+def set_up_socket_a(context):
+    # set up a reply socket for the generate password microservice
+    gen_socket = context.socket(zmq.REQ)
+    gen_port = 5556
+    # connect the socket to a port number
+    gen_socket.connect("tcp://localhost:" + str(gen_port))
+    return gen_socket
 
-    user_input = input("Please choose an option: ")
 
-    if user_input.lower() == "home":
-        home_screen()
-    elif user_input.lower() == "help":
-        help_screen()
-    elif user_input.lower() == "add":
-        add_screen()
-    elif user_input.lower() == "list":
-        list_screen()
-        current_key = ''
-    elif user_input.lower()[:4] == "view":
-        current_key = view_screen()
-    elif user_input.lower() == "show":
-        show_screen(current_key)
-    elif user_input.lower()[:6] == "delete":
-        delete_screen(current_key)
-    elif user_input.lower() == "exit":
-        break
+def open_database():
+    # establish a database for password information
+    db = shelve.open("log", "c", writeback=True)
+    current_key = ''
+    return db, current_key
 
-db.sync()
-db.close()
-print("\nExiting passw*rd...")
+
+def main():
+
+    # set up context for ZMQ
+    context = zmq.Context()
+    gen_socket = set_up_socket_a(context)
+
+    db, current_key = open_database()
+
+    home_screen()
+    while True:
+        print()
+        user_input = input("Please choose an option: ")
+
+        if user_input.lower() == "home":
+            home_screen()
+        elif user_input.lower() == "help":
+            help_screen(db)
+        elif user_input.lower() == "list":
+            list_screen(db)
+            current_key = ''
+        elif user_input.lower() == "add":
+            add_screen(db, gen_socket)
+        elif user_input.lower()[:6] == "delete":
+            delete_screen(db, current_key, user_input)
+        elif user_input.lower()[:4] == "view":
+            current_key = view_screen(db, user_input)
+        elif user_input.lower() == "show":
+            show_screen(db, current_key)
+        elif user_input.lower() == "rate":
+            rate_password(gen_socket)
+        elif user_input.lower() == "exit":
+            break
+
+    db.sync()
+    db.close()
+    context.destroy()
+    print("\nExiting passw*rd...")
+
+
+if __name__ == "__main__":
+    main()
