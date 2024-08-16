@@ -8,6 +8,72 @@ import shelve
 import zmq
 
 
+def main():
+
+    # set up context for ZMQ
+    context = zmq.Context()
+    gen_socket = set_up_socket_generate(context)
+    encrypt_socket = set_up_socket_encrypt(context)
+
+    db = open_database()
+    current_entry = ''
+    encrypt_key = "tennis"
+
+    home_screen()
+    while True:
+        print()
+        user_input = input("Please choose an option: ")
+
+        if user_input.lower() == "home":
+            home_screen()
+        elif user_input.lower() == "help":
+            help_screen(db)
+        elif user_input.lower() == "list":
+            list_screen(db)
+            current_entry = ''
+        elif user_input.lower() == "add":
+            add_screen(db, gen_socket, encrypt_socket, encrypt_key)
+        elif user_input.lower()[:6] == "delete":
+            delete_screen(db, current_entry, user_input)
+        elif user_input.lower()[:4] == "view":
+            current_entry = view_screen(db, user_input)
+        elif user_input.lower() == "show":
+            show_screen(db, current_entry, encrypt_socket, encrypt_key)
+        elif user_input.lower() == "rate":
+            rate_password(gen_socket)
+        elif user_input.lower() == "exit":
+            break
+
+    db.sync()
+    db.close()
+    context.destroy()
+    print("\nExiting passw*rd...")
+
+
+def set_up_socket_generate(context):
+    # set up a reply socket for the generate password microservice
+    gen_socket = context.socket(zmq.REQ)
+    gen_port = 5556
+    # connect the socket to a port number
+    gen_socket.connect("tcp://localhost:" + str(gen_port))
+    return gen_socket
+
+
+def set_up_socket_encrypt(context):
+    # set up a reply socket for the generate password microservice
+    encrypt_socket = context.socket(zmq.REQ)
+    encrypt_port = 5225
+    # connect the socket to a port number
+    encrypt_socket.connect("tcp://localhost:" + str(encrypt_port))
+    return encrypt_socket
+
+
+def open_database():
+    # establish a database for password information
+    db = shelve.open("log", "c", writeback=True)
+    return db
+
+
 def clear():
     """
     Clears the terminal window
@@ -69,7 +135,7 @@ def commands_additional():
     #print("Type \"view [website name]\" to view the entry for that website")
     print("Type \"delete [entry number]\" to delete a specific entry")
     print("Type \"delete [website name]\" to delete the entry for that website")
-
+    print("Type \"rate\" to get a rating for your password")
     print("When viewing password information, here are some commands")
     print("Type \"show\" to show the current password")
     print("Type \"delete\" to delete the current password")
@@ -104,11 +170,12 @@ def print_list_options():
     print("add new entry")
     print("delete entry")
     print("view entry")
+    print("rate password")
     print("help")
     print("exit")
 
 
-def add_screen(db, gen_socket):
+def add_screen(db, gen_socket, encrypt_socket, encrypt_key):
     """
     Prompts the user to add a new password to the password database
     :return None
@@ -131,10 +198,10 @@ def add_screen(db, gen_socket):
         if password.lower() == "generate":
             password = generate_password(gen_socket)
 
-
-        # add information to the password database
+        # encrypt password before adding to database
+        encrypted_password = encrypt_password(encrypt_socket, password, encrypt_key)
         db[website] = {'entry': len(db) + 1, 'site': website, 'user': user_name,
-                       'password': password}
+                       'password': encrypted_password}
 
     cleanup_database(db)
     list_screen(db)
@@ -156,6 +223,31 @@ def rate_password(gen_socket):
     print("Your password is " + password + ":")
     print(f'Password Rating: {response["rating"]}')
     print(f'Feedback: {response["feedback"]}')
+
+
+def encrypt_password(encrypt_socket, password, encrypt_key):
+    request = {"task": "encrypt", "target": password, "key": encrypt_key}
+    encrypt_socket.send_json(request)
+    response = encrypt_socket.recv()
+    return response.decode()
+
+
+def decrypt_password(encrypt_socket, password, encrypt_key):
+    request = {"task": "decrypt", "target": password, "key": encrypt_key}
+    encrypt_socket.send_json(request)
+    response = encrypt_socket.recv()
+    return response.decode()
+
+
+def cleanup_database(db):
+    """
+    Cleans up the database entry numbers after an addition or deletion
+    :return None
+    """
+    new_entry_num = 0
+    for key in db.keys():
+        new_entry_num += 1
+        db[key]['entry'] = new_entry_num
 
 
 def view_screen(db, user_input):
@@ -207,7 +299,7 @@ def print_view_options():
     print("exit")
 
 
-def show_screen(db, key):
+def show_screen(db, key, encrypt_socket, encrypt_key):
     """
     Gets the entry number that the user wants to view
     :param  key, String with the dictionary key for the password database dictionary
@@ -216,7 +308,10 @@ def show_screen(db, key):
     clear()
     print("Website:          " + db[key]['site'])
     print("User Name:        " + db[key]['user'])
-    print("Password:         " + db[key]['password'])
+
+    # decrypt the password in the database
+    password = decrypt_password(encrypt_socket, db[key]['password'], encrypt_key)
+    print("Password:         " + password)
     print()
     input("Press enter to return to view screen... ")
 
@@ -272,72 +367,6 @@ def delete_information(db, delete_entry, current_entry):
 
         cleanup_database(db)
         list_screen(db)
-
-
-def cleanup_database(db):
-    """
-    Cleans up the database entry numbers after an addition or deletion
-    :return None
-    """
-    new_entry_num = 0
-    for key in db.keys():
-        new_entry_num += 1
-        db[key]['entry'] = new_entry_num
-
-
-def set_up_socket_a(context):
-    # set up a reply socket for the generate password microservice
-    gen_socket = context.socket(zmq.REQ)
-    gen_port = 5556
-    # connect the socket to a port number
-    gen_socket.connect("tcp://localhost:" + str(gen_port))
-    return gen_socket
-
-
-def open_database():
-    # establish a database for password information
-    db = shelve.open("log", "c", writeback=True)
-    current_key = ''
-    return db, current_key
-
-
-def main():
-
-    # set up context for ZMQ
-    context = zmq.Context()
-    gen_socket = set_up_socket_a(context)
-
-    db, current_key = open_database()
-
-    home_screen()
-    while True:
-        print()
-        user_input = input("Please choose an option: ")
-
-        if user_input.lower() == "home":
-            home_screen()
-        elif user_input.lower() == "help":
-            help_screen(db)
-        elif user_input.lower() == "list":
-            list_screen(db)
-            current_key = ''
-        elif user_input.lower() == "add":
-            add_screen(db, gen_socket)
-        elif user_input.lower()[:6] == "delete":
-            delete_screen(db, current_key, user_input)
-        elif user_input.lower()[:4] == "view":
-            current_key = view_screen(db, user_input)
-        elif user_input.lower() == "show":
-            show_screen(db, current_key)
-        elif user_input.lower() == "rate":
-            rate_password(gen_socket)
-        elif user_input.lower() == "exit":
-            break
-
-    db.sync()
-    db.close()
-    context.destroy()
-    print("\nExiting passw*rd...")
 
 
 if __name__ == "__main__":
