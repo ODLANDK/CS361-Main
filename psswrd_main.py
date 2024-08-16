@@ -14,10 +14,17 @@ def main():
     context = zmq.Context()
     gen_socket = set_up_socket_generate(context)
     encrypt_socket = set_up_socket_encrypt(context)
+    user_socket = set_up_socket_user(context)
 
-    db = open_database()
     current_entry = ''
-    encrypt_key = "tennis"
+
+    user_name, user_password, valid_user = login_screen(user_socket)
+    encrypt_key = user_password
+    db = open_database(user_name)
+
+    if not valid_user:
+        exit_program(db, context)
+        return
 
     home_screen()
     while True:
@@ -44,10 +51,7 @@ def main():
         elif user_input.lower() == "exit":
             break
 
-    db.sync()
-    db.close()
-    context.destroy()
-    print("\nExiting passw*rd...")
+    exit_program(db, context)
 
 
 def set_up_socket_generate(context):
@@ -62,16 +66,64 @@ def set_up_socket_generate(context):
 def set_up_socket_encrypt(context):
     # set up a reply socket for the generate password microservice
     encrypt_socket = context.socket(zmq.REQ)
-    encrypt_port = 5225
+    encrypt_port = 5557
     # connect the socket to a port number
     encrypt_socket.connect("tcp://localhost:" + str(encrypt_port))
     return encrypt_socket
 
 
-def open_database():
+def set_up_socket_user(context):
+    # set up a reply socket for the generate password microservice
+    user_socket = context.socket(zmq.REQ)
+    encrypt_port = 5558
+    # connect the socket to a port number
+    user_socket.connect("tcp://localhost:" + str(encrypt_port))
+    return user_socket
+
+
+def open_database(user_name):
     # establish a database for password information
-    db = shelve.open("log", "c", writeback=True)
+    db = shelve.open(user_name, "c", writeback=True)
     return db
+
+
+def login_screen(user_socket):
+    clear()
+    print("Welcome to P*SSW*RD!")
+    print("Enter a username and password to log into your password manager")
+    print("New users can create a P*ssw*rd account and log in")
+    user_input = input("Sign up or Log in? ")
+    if user_input.lower() == "sign up":
+        username = input("Username: ")
+        user_password = input("Password: ")
+
+        return username, user_password, add_user(user_socket, username, user_password)
+    else:
+        print("Enter the correct username and password within 3 tries")
+        for i in range(1,4):
+            print("Attempt " + str(i))
+            username = input("Username: ")
+            user_password = input("Password: ")
+            # if the user logs in with the correct information
+            verified_user = authenticate(user_socket, username, user_password)
+            if verified_user:
+                break
+
+        return username, user_password, verified_user
+
+
+def authenticate(user_socket, user, password):
+    request = {"action": "check", "username": user, "password": password}
+    user_socket.send_json(request)
+    response = user_socket.recv()
+    return response.decode() == 'True'
+
+
+def add_user(user_socket, username, password):
+    request = {"action": "add", "username": username, "password": password}
+    user_socket.send_json(request)
+    response = user_socket.recv()
+    return response.decode() == 'True'
 
 
 def clear():
@@ -89,7 +141,7 @@ def home_screen():
     """
     clear()
     print()
-    print("Welcome to Passw*rd\n")
+    print("Welcome to P*ssw*rd\n")
     print("Store and manage passwords for all of your websites and apps")
     print("Never forget a password again!\n")
 
@@ -367,6 +419,12 @@ def delete_information(db, delete_entry, current_entry):
 
         cleanup_database(db)
         list_screen(db)
+
+def exit_program(db, context):
+    db.sync()
+    db.close()
+    context.destroy()
+    print("\nExiting passw*rd...")
 
 
 if __name__ == "__main__":
