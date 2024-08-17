@@ -1,6 +1,8 @@
 # Name: Kyle Odland
 # Course: CS361
 # A microservice to authenticate users of the P*ssw*rd app, and to add new users
+# user database structure: {'user_id': number, 'user': username,
+#                                            'password': password}
 
 import zmq
 import shelve

@@ -1,7 +1,7 @@
 # Name: Kyle Odland
 # Course: CS361
 # A password manager application that can add, delete and show password
-# information.
+# information. It can also automatically generate passwords, rate a password
 
 import os
 import shelve
@@ -184,7 +184,6 @@ def commands_additional():
     print("You can also interact with the list of password information")
     print("Here are some commands when looking at your password database: ")
     print("Type \"view [entry number]\" to view a specific entry")
-    #print("Type \"view [website name]\" to view the entry for that website")
     print("Type \"delete [entry number]\" to delete a specific entry")
     print("Type \"delete [website name]\" to delete the entry for that website")
     print("Type \"rate\" to get a rating for your password")
@@ -278,14 +277,14 @@ def rate_password(gen_socket):
 
 
 def encrypt_password(encrypt_socket, password, encrypt_key):
-    request = {"task": "encrypt", "target": password, "key": encrypt_key}
+    request = {"action": "encrypt", "target": password, "key": encrypt_key}
     encrypt_socket.send_json(request)
     response = encrypt_socket.recv()
     return response.decode()
 
 
 def decrypt_password(encrypt_socket, password, encrypt_key):
-    request = {"task": "decrypt", "target": password, "key": encrypt_key}
+    request = {"action": "decrypt", "target": password, "key": encrypt_key}
     encrypt_socket.send_json(request)
     response = encrypt_socket.recv()
     return response.decode()
