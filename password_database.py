@@ -14,24 +14,25 @@ def main():
     socket = set_up_socket(context)
 
     get_data, username = read_request(socket)
-    password_db_list = get_pw_data(username)
+    db, password_db_list = get_pw_data(username)
+
+    # make sure that database is cleaned up before sending to main program
+    cleanup_database(db, password_db_list)
     socket.send_json(password_db_list)
 
     while True:
-        action, data = read_request(socket)
+        action, password_data = read_request(socket)
 
         if action == 'add':
-            #password_db_list = add_to_db(data, password_db_list)
-            add_to_db(data, password_db_list)
+            add_to_db(db, password_db_list, password_data)
             response = 'Success'
         elif action == 'delete':
-            #password_db_list = delete_from_db(data, password_db_list)
-            delete_from_db(data, password_db_list)
+
+            delete_from_db(db, password_db_list, password_data)
             response = 'Success'
         elif action == 'get':
             # data from the socket will be the username
-            #password_db_list = get_pw_data(data)
-            get_pw_data(data)
+            get_pw_data(password_data)
             response = password_db_list
         elif action == 'quit':
             break
@@ -42,6 +43,9 @@ def main():
         socket.send_json(response)
 
     # exit the server program
+    cleanup_database(db, password_db_list)
+    db.sync()
+    db.close()
     context.destroy()
     print("Server closed")
 
@@ -66,7 +70,10 @@ def read_request(socket):
 def get_pw_data(user_name):
     db = open_database(user_name)
     password_data = db_to_json(db)
-    return password_data
+
+    print("Added entry: " + str(password_data) + "\n")
+
+    return db, password_data
 
 
 def open_database(user_name):
@@ -83,34 +90,39 @@ def db_to_json(db):
     return pw_list
 
 
-def add_to_db(entry, password_db_list):
+def add_to_db(db, password_db_list, entry):
 
     entry['entry'] = len(password_db_list) + 1
     password_db_list.append(entry)
+    db[entry['site']] = entry
+
     print("Added entry: " + str(entry) + "\n")
-    #return password_db_list
 
 
-def delete_from_db(entry, password_db_list):
+def delete_from_db(db, password_db_list, entry):
 
     del password_db_list[entry['entry'] - 1]
-    cleanup_list(password_db_list)
+    del db[entry['site']]
+
+    cleanup_database(db, password_db_list)
 
     print("Deleted entry: " + str(entry) + "\n")
-    #return pw_list
 
 
-def cleanup_list(pw_list):
+def cleanup_database(db, password_db_list):
     """
     Cleans up the database entry numbers after a deletion
     :return pw_list: List of pw_list entries
     """
     new_entry_num = 0
-    for entry in pw_list:
+    for entry in password_db_list:
         new_entry_num += 1
         entry['entry'] = new_entry_num
 
-    #return pw_list
+    new_entry_num = 0
+    for key in db.keys():
+        new_entry_num += 1
+        db[key]['entry'] = new_entry_num
 
 
 if __name__ == "__main__":
