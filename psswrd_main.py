@@ -23,7 +23,7 @@ def main():
 
     # if the user isn't authenticated, exit
     if not valid_user:
-        exit_program(context, db_socket)
+        exit_program(context)
         return
 
     # set up the encryption key
@@ -262,10 +262,11 @@ def add_screen(pw_list, db_socket, gen_socket, encrypt_socket, encrypt_key):
     else:
         user_name = input("add username: ")
         password = input("add password\n"
-                         "Type generate to automatically generate a new password: ")
+                         "(Type generate to automatically generate a new password): ")
 
         if password.lower() == "generate":
             password = generate_password(gen_socket)
+            print("Your randomly generated password is: ", password)
 
         # encrypt password before adding to database
         encrypted_password = encrypt_password(encrypt_socket, password, encrypt_key)
@@ -274,7 +275,6 @@ def add_screen(pw_list, db_socket, gen_socket, encrypt_socket, encrypt_key):
 
         add_entry_to_database(pw_list, db_socket, add_entry)
 
-    #cleanup_database(pw_list)
     list_screen(pw_list)
 
 
@@ -462,7 +462,7 @@ def rate_password(gen_socket):
 
 def exit_program(context, db_socket):
     # send message to database microservice to exit
-    db_socket.send_json({'action': 'quit', 'data': ''})
+    #db_socket.send_json({'action': 'quit', 'data': ''})
 
     context.destroy()
     print("\nExiting passw*rd...")
