@@ -37,6 +37,7 @@ def add_user(db, user, pw):
         return False
     else:
         db[user] = {'user_id': len(db) + 1, 'username': user, 'password': pw}
+        db.sync()
         return True
 
 

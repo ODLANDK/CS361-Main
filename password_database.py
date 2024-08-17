@@ -95,6 +95,7 @@ def add_to_db(db, password_db_list, entry):
     entry['entry'] = len(password_db_list) + 1
     password_db_list.append(entry)
     db[entry['site']] = entry
+    db.sync()
 
     print("Added entry: " + str(entry) + "\n")
 
@@ -103,6 +104,7 @@ def delete_from_db(db, password_db_list, entry):
 
     del password_db_list[entry['entry'] - 1]
     del db[entry['site']]
+    db.sync()
 
     cleanup_database(db, password_db_list)
 
@@ -123,6 +125,8 @@ def cleanup_database(db, password_db_list):
     for key in db.keys():
         new_entry_num += 1
         db[key]['entry'] = new_entry_num
+
+    db.sync()
 
 
 if __name__ == "__main__":

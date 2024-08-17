@@ -344,9 +344,11 @@ def delete_information(pw_list, db_socket, delete_key, current_entry):
 
         if del_choice.lower() == 'n' and current_entry == '':
             list_screen(pw_list)
+            return
         elif del_choice.lower() == 'n' and current_entry != '':
             # show the view screen again for the entry
             view_information(pw_list, current_entry['entry'])
+            return
         elif not delete_key.isnumeric():
             for entry in pw_list:
                 if entry['site'] == delete_key:
@@ -356,9 +358,9 @@ def delete_information(pw_list, db_socket, delete_key, current_entry):
             entry = pw_list[int(delete_key) - 1]
             del pw_list[int(delete_key) - 1]
 
-        delete_entry_from_database(db_socket, entry)
-        cleanup_database(pw_list)
-        list_screen(pw_list)
+            delete_entry_from_database(db_socket, entry)
+            cleanup_database(pw_list)
+            list_screen(pw_list)
 
 
 def delete_entry_from_database(db_socket, delete_entry):
