@@ -460,9 +460,7 @@ def rate_password(gen_socket):
     print(f'Feedback: {response["feedback"]}')
 
 
-def exit_program(context, db_socket):
-    # send message to database microservice to exit
-    #db_socket.send_json({'action': 'quit', 'data': ''})
+def exit_program(context):
 
     context.destroy()
     print("\nExiting passw*rd...")
