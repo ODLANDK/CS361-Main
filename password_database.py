@@ -15,7 +15,6 @@ def main():
 
     get_data, username = read_request(socket)
     db, password_db_list = get_pw_data(username)
-
     # make sure that database is cleaned up before sending to main program
     cleanup_database(db, password_db_list)
     socket.send_json(password_db_list)
@@ -71,7 +70,7 @@ def get_pw_data(user_name):
     db = open_database(user_name)
     password_data = db_to_json(db)
 
-    print("Added entry: " + str(password_data) + "\n")
+    print("Sending entry: " + str(password_data) + "\n")
 
     return db, password_data
 

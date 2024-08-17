@@ -23,7 +23,9 @@ def main():
 
     # if the user isn't authenticated, exit
     if not valid_user:
-        exit_program(context)
+        # call the database socket
+        get_database(db_socket, username)
+        exit_program(context, db_socket)
         return
 
     # set up the encryption key
@@ -57,7 +59,7 @@ def main():
         elif user_input.lower() == "exit":
             break
 
-    exit_program(context)
+    exit_program(context, db_socket)
 
 
 def set_up_socket_database(context):
@@ -358,9 +360,9 @@ def delete_information(pw_list, db_socket, delete_key, current_entry):
             entry = pw_list[int(delete_key) - 1]
             del pw_list[int(delete_key) - 1]
 
-            delete_entry_from_database(db_socket, entry)
-            cleanup_database(pw_list)
-            list_screen(pw_list)
+        delete_entry_from_database(db_socket, entry)
+        cleanup_database(pw_list)
+        list_screen(pw_list)
 
 
 def delete_entry_from_database(db_socket, delete_entry):
@@ -462,10 +464,13 @@ def rate_password(gen_socket):
     print(f'Feedback: {response["feedback"]}')
 
 
-def exit_program(context):
+def exit_program(context, db_socket):
+
+    # send message to database microservice to exit
+    db_socket.send_json({'action': 'quit', 'data': ''})
 
     context.destroy()
-    print("\nExiting passw*rd...")
+    print("\nExiting P*SSW*RD...")
 
 
 if __name__ == "__main__":
