@@ -60,21 +60,22 @@ def main():
     while True:
         action, username, password = read_request(socket)
 
-        if action == 'add':
-            response = add_user(db, username, password)
-        elif action == 'check':
-            response = authenticate_user(db, username, password)
-            print("server response on server: " + str(response))
-        elif action == 'quit':
-            break
-        else:
-            response = False
-
         # show what the microservice is doing
         if action == 'check':
             print("Authenticating " + username + "\n")
         elif action == 'add':
             print("Adding new user " + username + "\n")
+
+        if action == 'add':
+            response = add_user(db, username, password)
+        elif action == 'check':
+            response = authenticate_user(db, username, password)
+        elif action == 'quit':
+            break
+        else:
+            response = False
+
+
 
         # send message back to client
         socket.send_string(str(response))

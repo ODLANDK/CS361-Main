@@ -57,7 +57,7 @@ def main():
         elif user_input.lower() == "exit":
             break
 
-    exit_program(context, db_socket)
+    exit_program(context)
 
 
 def set_up_socket_database(context):
