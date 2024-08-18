@@ -269,6 +269,7 @@ def add_screen(pw_list, db_socket, gen_socket, encrypt_socket, encrypt_key):
         if password.lower() == "generate":
             password = generate_password(gen_socket)
             print("Your randomly generated password is: ", password)
+            input("Press enter to continue...")
 
         # encrypt password before adding to database
         encrypted_password = encrypt_password(encrypt_socket, password, encrypt_key)
